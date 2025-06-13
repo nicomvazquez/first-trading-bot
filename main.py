@@ -40,7 +40,7 @@ def main_bot_loop():
             df_klines[['open', 'high', 'low', 'close', 'volume']] = \
                 df_klines[['open', 'high', 'low', 'close', 'volume']].astype(float)
             # Convertir timestamp a datetime y establecer como índice, luego ordenar por tiempo
-            df_klines['start_time'] = pd.to_datetime(df_klines['start_time'], unit='ms')
+            df_klines['start_time'] = pd.to_datetime(df_klines['start_time'].astype(int), unit='ms')
             df_klines = df_klines.set_index('start_time').sort_index()
 
             # 3. Generar la señal de trading usando la estrategia

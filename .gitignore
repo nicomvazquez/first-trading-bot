@@ -2,6 +2,7 @@
 env/
 venv/
 .venv/
+.env
 
 # Archivos de caché y compilación
 __pycache__/
@@ -15,3 +16,4 @@ Thumbs.db
 
 # Archivos de logs
 *.log
+*.cvs
