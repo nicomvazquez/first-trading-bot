@@ -8,6 +8,8 @@ TESTNET = True
 # --- TRADING PARAMETERS ---
 SYMBOL = "BTCUSDT"  # El par de futuros que vas a operar (ej. BTCUSDT, ETHUSDT)
 INTERVAL = "1"      # Intervalo de las velas: "1", "5", "15", "60" (horas), "240" (4 horas), "D" (días)
+# Intervalo de tiempo entre cada verificación del bot (en segundos)
+CHECK_INTERVAL_SECONDS = 60 # O el valor que prefieras, por ejemplo, 30, 120, etc.
 TRADE_QUANTITY = 0.001 # Cantidad a operar por transacción (ej. 0.001 BTC). ¡Ajusta según tu capital en Testnet!
 
 # --- STRATEGY PARAMETERS (Example: Simple Moving Average Crossover) ---

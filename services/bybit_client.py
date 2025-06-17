@@ -66,10 +66,7 @@ class BybitClient:
                 "isLeverage": 1, # Generalmente 1 para futuros perpetuos (apalancamiento habilitado)
                 "timeInForce": "GTC" # Good Till Cancel (la orden permanece hasta que se ejecuta o se cancela)
             }
-            # Si se usara una orden límite, aquí iría el precio
-            # if order_type == "Limit" and price is not None:
-            #     order_params["price"] = str(price)
-
+            
             response = self.session.place_order(**order_params)
             print(f"Respuesta de orden enviada: {response}")
             if response and 'result' in response and 'orderId' in response['result']:
@@ -100,44 +97,61 @@ class BybitClient:
             print(f"Excepción al obtener balance para {coin}: {e}")
             return 0.0
 
-    def get_position_info(self, symbol):
+    def get_current_position(self, symbol):
         """
-        Obtiene información de la posición actual para un símbolo dado.
-        symbol: El par de trading (ej. "BTCUSDT")
+        Obtiene el tamaño, el lado y el precio de entrada promedio de la posición actual para un símbolo dado.
+        Retorna (tamaño, lado_de_la_posicion, avg_entry_price)
+        lado_de_la_posicion puede ser "Buy", "Sell" o "None".
+        avg_entry_price será float o None si no hay posición.
         """
         try:
-            response = self.session.get_positions(
-                category="linear", # Para futuros perpetuos (USD-M)
-                symbol=symbol
-            )
-            if response and 'result' in response and 'list' in response['result'] and len(response['result']['list']) > 0:
-                # En futuros, normalmente solo hay una posición activa por símbolo (long o short)
-                # Buscamos la primera posición con tamaño > 0
-                for pos in response['result']['list']:
-                    if float(pos['size']) > 0: 
-                        return pos # Retorna el diccionario con los detalles de la posición
-            return None # No hay posición activa para este símbolo
+            response = self.session.get_positions(category="linear", symbol=symbol)
+            
+            if response and response['retCode'] == 0 and 'list' in response['result']:
+                positions = response['result']['list']
+                
+                if positions:
+                    position = positions[0] 
+                    size = float(position['size'])
+                    side = position['side'].capitalize() 
+                    avg_entry_price = float(position['avgPrice']) # <-- ¡Esta línea es la clave!
+                    
+                    if size > 0:
+                        return size, side, avg_entry_price # <-- Ahora devuelve 3 valores
+                    else:
+                        return 0.0, "None", None # <-- Si no hay posición, avg_price es None
+                else:
+                    return 0.0, "None", None # <-- Si no hay posiciones, avg_price es None
+            else:
+                print(f"Error al obtener posiciones (Bybit API): {response}")
+                return 0.0, "None", None # <-- Si hay error, avg_price es None
         except Exception as e:
             print(f"Excepción al obtener información de la posición para {symbol}: {e}")
-            return None
+            return 0.0, "None", None # <-- En caso de excepción, avg_price es None
 
-    def close_position(self, symbol, side, qty):
+
+    def close_position(self, symbol, current_position_side, qty):
         """
         Cierra una posición abierta.
         symbol: El par de trading
-        side: El lado de la posición a CERRAR ("Buy" para cerrar un Short, "Sell" para cerrar un Long)
+        current_position_side: El lado de la posición actualmente ABIERTA ("Buy" o "Sell").
+                               Este es el valor que devuelve get_current_position.
         qty: El tamaño de la posición a cerrar.
         """
         # Para cerrar una posición, la orden debe ser del lado OPUESTO a la posición actual.
-        # Si tienes un Long (Buy), para cerrarlo, colocas una orden Sell.
-        # Si tienes un Short (Sell), para cerrarlo, colocas una orden Buy.
-        if side == "Long": # Si la posición actual es Long, cerramos con una orden Sell
-            close_side = "Sell"
-        elif side == "Short": # Si la posición actual es Short, cerramos con una orden Buy
-            close_side = "Buy"
+        # Si tienes un Buy (Long), para cerrarlo, colocas una orden Sell.
+        # Si tienes un Sell (Short), para cerrarlo, colocas una orden Buy.
+        
+        close_order_side = None
+        if current_position_side == "Buy": # Si la posición actual es LONG ("Buy")
+            close_order_side = "Sell" # Necesitamos una orden de VENTA para cerrar
+        elif current_position_side == "Sell": # Si la posición actual es SHORT ("Sell")
+            close_order_side = "Buy" # Necesitamos una orden de COMPRA para cerrar
         else:
-            print(f"Error: Lado de posición desconocido para cerrar: {side}")
+            print(f"Error: Lado de posición desconocido o no válido para cerrar: {current_position_side}")
             return None
 
-        print(f"Cerrando posición: Símbolo={symbol}, Lado de cierre={close_side}, Cantidad={qty}")
-        return self.place_order(symbol, close_side, qty, order_type="Market")
+        if close_order_side:
+            print(f"Cerrando posición: Símbolo={symbol}, Lado de cierre={close_order_side}, Cantidad={qty}")
+            return self.place_order(symbol, close_order_side, qty, order_type="Market")
+        return None

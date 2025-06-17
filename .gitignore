@@ -16,4 +16,4 @@ Thumbs.db
 
 # Archivos de logs
 *.log
-*.cvs
+data/*.csv
